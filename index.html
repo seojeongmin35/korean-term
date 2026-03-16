@@ -35,10 +35,38 @@
       font-size: 12px; font-weight: 700; margin-bottom: 10px;
     }
     .small { font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px; }
+    .hidden { display: none; }
+    .center-card {
+      max-width: 540px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      padding: 22px;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div id="gateScreen" class="wrap">
+    <div class="center-card">
+      <div class="badge">입장 비밀번호</div>
+      <h1>아르케 영어 도우미</h1>
+      <div class="sub">
+        비밀번호를 입력해야 사용할 수 있습니다.
+      </div>
+      <label for="sitePassword">비밀번호</label>
+      <input id="sitePassword" type="password" placeholder="비밀번호를 입력하세요" />
+      <div class="row">
+        <button onclick="enterSite()">입장하기</button>
+      </div>
+      <div id="gateOutput" class="output">여기에 안내 문구가 표시됩니다.</div>
+      <div class="small">
+        비밀번호는 서버에서 확인합니다.
+      </div>
+    </div>
+  </div>
+
+  <div id="appScreen" class="wrap hidden">
     <div class="hero">
       <h1>아르케 영어 도우미</h1>
       <div class="sub">
@@ -80,17 +108,64 @@
           <button onclick="testConnection()">연결 테스트</button>
         </div>
         <div id="testOutput" class="output">여기에 연결 상태가 표시됩니다.</div>
-        <div class="small">학생에게는 이 버튼을 굳이 안내하지 않아도 됩니다.</div>
       </div>
     </div>
   </div>
 
 <script>
+let siteUnlocked = false;
+
+function showApp() {
+  document.getElementById('gateScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.remove('hidden');
+}
+
+async function enterSite() {
+  const pw = document.getElementById('sitePassword').value.trim();
+  const out = document.getElementById('gateOutput');
+  if (!pw) {
+    out.innerHTML = '<span class="err">비밀번호를 입력하세요.</span>';
+    return;
+  }
+
+  out.textContent = '확인 중...';
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      out.innerHTML = '<span class="err">' + escapeHtml(data.error || '비밀번호 확인 실패') + '</span>';
+      return;
+    }
+
+    if (data.ok) {
+      siteUnlocked = true;
+      out.innerHTML = '<span class="ok">입장 성공</span>';
+      showApp();
+    } else {
+      out.innerHTML = '<span class="err">비밀번호가 틀렸습니다.</span>';
+    }
+  } catch (e) {
+    out.innerHTML = '<span class="err">서버 연결 중 오류가 발생했습니다.</span>';
+  }
+}
+
 async function callApi(mode, text) {
+  if (!siteUnlocked) {
+    throw new Error('먼저 비밀번호를 입력해야 합니다.');
+  }
+
+  const password = document.getElementById('sitePassword').value.trim();
+
   const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode, text })
+    body: JSON.stringify({ mode, text, password })
   });
 
   let data = {};

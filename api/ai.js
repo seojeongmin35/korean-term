@@ -1,10 +1,19 @@
+function isAuthorized(reqPassword) {
+  const pw = process.env.SITE_PASSWORD || '';
+  return pw && reqPassword && pw === reqPassword;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'POST만 가능합니다.' });
   }
 
   try {
-    const { mode, text } = req.body || {};
+    const { mode, text, password } = req.body || {};
+
+    if (!isAuthorized(password)) {
+      return res.status(401).json({ error: '비밀번호가 올바르지 않습니다.' });
+    }
 
     let userPrompt = '';
     let systemPrompt = '너는 한국 학생을 위한 영어 도우미다. 정확하고 짧고 이해하기 쉽게 설명한다.';
